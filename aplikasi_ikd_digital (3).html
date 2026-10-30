@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi IKD (Identitas Kependudukan Digital)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS (xlsx) CDN untuk export Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- FontAwesome untuk ikon modern -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        dukcapil: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-100 text-slate-800 h-full flex flex-col font-sans antialiased">
+
+    <!-- Header / Navbar -->
+    <header class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 p-2.5 rounded-xl shadow-inner flex items-center justify-center">
+                    <i class="fa-solid fa-id-card text-2xl text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">IKD - Identitas Kependudukan Digital</h1>
+                    <p class="text-xs text-blue-200">Direktorat Jenderal Kependudukan dan Pencatatan Sipil (Simulasi)</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow transition flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus"></i> Tambah Penduduk
+                </button>
+                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow transition flex items-center gap-2">
+                    <i class="fa-solid fa-file-excel"></i> Export Excel
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 flex-1 w-full">
+        
+        <!-- Stats / Filter Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Penduduk Terdaftar</p>
+                    <h3 id="totalCount" class="text-2xl font-bold text-slate-800 mt-1">0</h3>
+                </div>
+                <div class="bg-blue-50 text-blue-600 p-3 rounded-xl text-xl">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Penyimpanan Lokal</p>
+                    <h3 class="text-2xl font-bold text-emerald-600 mt-1">Aktif (Storage)</h3>
+                </div>
+                <div class="bg-emerald-50 text-emerald-600 p-3 rounded-xl text-xl">
+                    <i class="fa-solid fa-database"></i>
+                </div>
+            </div>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Pencarian Cepat</p>
+                    <div class="mt-1 relative">
+                        <input type="text" id="searchInput" oninput="renderTable()" placeholder="Cari NIK atau Nama..." class="w-full text-sm bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div class="bg-indigo-50 text-indigo-600 p-3 rounded-xl text-xl">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <h2 class="font-semibold text-slate-800"><i class="fa-solid fa-table-list mr-2 text-blue-600"></i>Daftar Penduduk & Kartu Digital</h2>
+                <span class="text-xs bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full font-medium">Data Real-time</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100/70 text-slate-600 text-xs uppercase tracking-wider border-b border-slate-200">
+                            <th class="py-3 px-4 font-semibold">Foto</th>
+                            <th class="py-3 px-4 font-semibold">NIK</th>
+                            <th class="py-3 px-4 font-semibold">Nama Lengkap</th>
+                            <th class="py-3 px-4 font-semibold">Tempat/Tgl Lahir</th>
+                            <th class="py-3 px-4 font-semibold">Jenis Kelamin</th>
+                            <th class="py-3 px-4 font-semibold text-center">Aksi & Kartu IKD</th>
+                        </tr>
+                    </thead>
+                    <tbody id="residentTableBody" class="divide-y divide-slate-200 text-sm">
+                        <!-- Rendered via JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="emptyState" class="hidden py-12 text-center">
+                <div class="text-slate-400 text-4xl mb-3"><i class="fa-solid fa-folder-open"></i></div>
+                <p class="text-slate-500 font-medium">Belum ada data penduduk tersimpan.</p>
+                <p class="text-xs text-slate-400 mt-1">Klik tombol "Tambah Penduduk" di atas untuk mulai memasukkan data.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Form (Add/Edit) -->
+    <div id="residentModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden transform transition-all my-8">
+            <div class="bg-gradient-to-r from-blue-900 to-indigo-900 px-6 py-4 text-white flex justify-between items-center">
+                <h3 id="modalTitle" class="font-bold text-lg"><i class="fa-solid fa-user-plus mr-2"></i>Tambah Data Penduduk</h3>
+                <button onclick="closeModal()" class="text-blue-200 hover:text-white transition text-xl font-bold">&times;</button>
+            </div>
+            <form id="residentForm" onsubmit="saveResident(event)" class="p-6 space-y-4">
+                <input type="hidden" id="editIndex" value="">
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">NIK (16 Digit)</label>
+                        <input type="text" id="nik" required maxlength="16" pattern="\d{16}" placeholder="Contoh: 327504..." class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nama Lengkap</label>
+                        <input type="text" id="nama" required placeholder="Sesuai KTP" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Tempat Lahir</label>
+                        <input type="text" id="tempatLahir" required placeholder="Kota Lahir" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Tanggal Lahir</label>
+                        <input type="date" id="tanggalLahir" required class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Jenis Kelamin</label>
+                        <select id="jenisKelamin" required class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="LAKI-LAKI">LAKI-LAKI</option>
+                            <option value="PEREMPUAN">PEREMPUAN</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Agama</label>
+                        <select id="agama" required class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="ISLAM">ISLAM</option>
+                            <option value="KRISTEN">KRISTEN</option>
+                            <option value="KATOLIK">KATOLIK</option>
+                            <option value="HINDU">HINDU</option>
+                            <option value="BUDHA">BUDHA</option>
+                            <option value="KONGHUCU">KONGHUCU</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Alamat</label>
+                    <textarea id="alamat" rows="2" required placeholder="Jalan, RT/RW, Kelurahan, Kecamatan" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <!-- Bagian Foto (Upload / Kamera) -->
+                <div class="border border-slate-200 rounded-xl p-4 bg-slate-50">
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-2">Foto Wajah Penduduk</label>
+                    
+                    <div class="flex flex-wrap gap-3 mb-3">
+                        <button type="button" onclick="switchPhotoTab('upload')" id="btnTabUpload" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white shadow-sm transition"><i class="fa-solid fa-upload mr-1"></i> Upload File</button>
+                        <button type="button" onclick="switchPhotoTab('camera')" id="btnTabCamera" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 transition"><i class="fa-solid fa-camera mr-1"></i> Gunakan Kamera</button>
+                    </div>
+
+                    <!-- Panel Upload -->
+                    <div id="panelUpload" class="space-y-2">
+                        <input type="file" id="fotoFile" accept="image/*" onchange="previewUploadedImage(event)" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                    </div>
+
+                    <!-- Panel Kamera -->
+                    <div id="panelCamera" class="hidden space-y-2">
+                        <div class="relative bg-black rounded-lg overflow-hidden aspect-video flex items-center justify-center">
+                            <video id="webcam" autoplay playsinline class="w-full h-full object-cover"></video>
+                            <canvas id="webcamCanvas" class="hidden"></canvas>
+                            <div id="cameraPlaceholder" class="absolute text-slate-400 text-xs">Kamera belum aktif</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" onclick="startCamera()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-2 rounded-lg font-medium transition"><i class="fa-solid fa-play mr-1"></i> Hidupkan Kamera</button>
+                            <button type="button" onclick="capturePhoto()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-2 rounded-lg font-medium transition"><i class="fa-solid fa-camera mr-1"></i> Ambil Foto</button>
+                            <button type="button" onclick="stopCamera()" class="bg-rose-600 hover:bg-rose-500 text-white text-xs px-3 py-2 rounded-lg font-medium transition" title="Matikan Kamera"><i class="fa-solid fa-stop"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Preview Foto Hasil -->
+                    <div class="mt-3 flex items-center gap-4">
+                        <div class="w-16 h-20 bg-slate-200 rounded-lg overflow-hidden border border-slate-300 flex items-center justify-center shrink-0">
+                            <img id="fotoPreview" src="https://placehold.co/150x200/cbd5e1/64748b?text=Foto" alt="Preview Foto" class="w-full h-full object-cover">
+                        </div>
+                        <div class="text-xs text-slate-500">
+                            <p class="font-medium text-slate-700">Pratinjau Foto Wajah</p>
+                            <p>Foto akan disimpan bersama data identitas digital.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm px-4 py-2 rounded-lg font-medium transition">Batal</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white text-sm px-5 py-2 rounded-lg font-medium shadow transition">Simpan Data</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal KTP Digital / IKD Detail -->
+    <div id="ikdModal" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden border border-blue-500/30 text-white relative">
+            
+            <!-- Header Kartu IKD -->
+            <div class="p-5 pb-3 flex justify-between items-center border-b border-white/10 bg-white/5">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 bg-red-600 rounded-full flex items-center justify-center font-bold text-xs">RI</div>
+                    <span class="text-xs font-semibold tracking-wider text-blue-200">REPUBLIK INDONESIA</span>
+                </div>
+                <button onclick="closeIkdModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+            </div>
+
+            <!-- Kartu Tampak Depan Gaya IKD -->
+            <div class="p-6 space-y-4">
+                <div class="text-center">
+                    <h4 class="text-xs tracking-widest text-blue-300 uppercase font-semibold">KARTU TANDA PENDUDUK DIGITAL</h4>
+                </div>
+
+                <div class="flex gap-4 items-center bg-white/10 p-3.5 rounded-2xl border border-white/10 shadow-inner">
+                    <div class="w-24 h-32 bg-slate-800 rounded-xl overflow-hidden border-2 border-white/20 shrink-0">
+                        <img id="ikdFoto" src="" alt="Foto Wajah" class="w-full h-full object-cover">
+                    </div>
+                    <div class="space-y-1 overflow-hidden">
+                        <p class="text-[10px] uppercase text-blue-300 font-medium">NIK</p>
+                        <p id="ikdNik" class="text-sm font-bold tracking-wide text-white"></p>
+                        <p class="text-[10px] uppercase text-blue-300 font-medium mt-1">NAMA</p>
+                        <p id="ikdNama" class="text-sm font-bold text-amber-300 truncate"></p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-xs bg-black/20 p-3 rounded-xl border border-white/5">
+                    <div>
+                        <span class="text-[10px] text-slate-400 block">TTL</span>
+                        <span id="ikdTtl" class="font-medium"></span>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-400 block">GENDER / AGAMA</span>
+                        <span id="ikdGenderAgama" class="font-medium"></span>
+                    </div>
+                    <div class="col-span-2 mt-1">
+                        <span class="text-[10px] text-slate-400 block">ALAMAT</span>
+                        <span id="ikdAlamat" class="font-medium text-slate-200"></span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-2 border-t border-white/10 text-xs">
+                    <div class="flex items-center gap-1.5 text-emerald-400">
+                        <i class="fa-solid fa-circle-check"></i> <span class="font-medium">TERVERIFIKASI DUKCAPIL</span>
+                    </div>
+                    <button onclick="downloadActiveFoto()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1.5 shadow">
+                        <i class="fa-solid fa-download"></i> Unduh Foto
+                    </button>
+                </div>
+            </div>
+            
+            <div class="bg-blue-600/20 px-4 py-2 text-center text-[10px] text-blue-300 border-t border-blue-500/20">
+                Dokumen resmi kependudukan digital berbasis elektronik.
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
+            &copy; 2026 Direktorat Jenderal Kependudukan dan Pencatatan Sipil. Simulasi IKD Web App.
+        </div>
+    </footer>
+
+    <!-- Script Aplikasi -->
+    <script>
+        // State Global
+        let residents = JSON.parse(localStorage.getItem('ikd_residents')) || [];
+        let videoStream = null;
+        let base64PhotoData = '';
+        let activeResidentForDownload = null;
+
+        // Inisialisasi awal
+        window.onload = function() {
+            renderTable();
+        };
+
+        // Simpan ke localStorage
+        function saveToStorage() {
+            localStorage.setItem('ikd_residents', JSON.stringify(residents));
+            renderTable();
+        }
+
+        // Render Tabel Penduduk
+        function renderTable() {
+            const tbody = document.getElementById('residentTableBody');
+            const emptyState = document.getElementById('emptyState');
+            const totalCount = document.getElementById('totalCount');
+            const searchInput = document.getElementById('searchInput');
+            const query = searchInput ? searchInput.value.toLowerCase() : '';
+
+            tbody.innerHTML = '';
+            
+            const filtered = residents.filter(r => 
+                r.nik.toLowerCase().includes(query) || 
+                r.nama.toLowerCase().includes(query)
+            );
+
+            totalCount.textContent = residents.length;
+
+            if (filtered.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            filtered.forEach((res, index) => {
+                // Cari index asli di array utama jika difilter
+                const originalIndex = residents.findIndex(r => r.nik === res.nik);
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                tr.innerHTML = `
+                    <td class="py-3 px-4">
+                        <div class="w-10 h-12 bg-slate-200 rounded-lg overflow-hidden border border-slate-300 shadow-sm flex items-center justify-center">
+                            <img src="${res.foto || 'https://placehold.co/150x200/cbd5e1/64748b?text=No+Foto'}" alt="Foto" class="w-full h-full object-cover">
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 font-mono font-semibold text-slate-700">${res.nik}</td>
+                    <td class="py-3 px-4 font-medium text-slate-900">${res.nama}</td>
+                    <td class="py-3 px-4 text-slate-600">${res.tempatLahir}, ${formatDate(res.tanggalLahir)}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">${res.jenisKelamin}</span></td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button onclick="openIkdModal(${originalIndex})" class="bg-indigo-600 hover:bg-indigo-500 text-white p-1.5 rounded-lg text-xs transition shadow-sm" title="Lihat KTP Digital"><i class="fa-solid fa-id-card"></i></button>
+                            <button onclick="downloadPhoto(${originalIndex})" class="bg-emerald-600 hover:bg-emerald-500 text-white p-1.5 rounded-lg text-xs transition shadow-sm" title="Download Foto"><i class="fa-solid fa-download"></i></button>
+                            <button onclick="editResident(${originalIndex})" class="bg-amber-500 hover:bg-amber-400 text-white p-1.5 rounded-lg text-xs transition shadow-sm" title="Edit Data"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteResident(${originalIndex})" class="bg-rose-600 hover:bg-rose-500 text-white p-1.5 rounded-lg text-xs transition shadow-sm" title="Hapus Data"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Format tanggal Indonesia sederhana
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('id-ID', options);
+        }
+
+        // Modal Controls
+        function openModal() {
+            document.getElementById('residentModal').classList.remove('hidden');
+            document.getElementById('residentForm').reset();
+            document.getElementById('editIndex').value = '';
+            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-user-plus mr-2"></i>Tambah Data Penduduk';
+            base64PhotoData = 'https://placehold.co/150x200/cbd5e1/64748b?text=Foto';
+            document.getElementById('fotoPreview').src = base64PhotoData;
+            switchPhotoTab('upload');
+            stopCamera();
+        }
+
+        function closeModal() {
+            document.getElementById('residentModal').classList.add('hidden');
+            stopCamera();
+        }
+
+        // Tab Foto Switcher (Upload vs Kamera)
+        function switchPhotoTab(mode) {
+            const btnUpload = document.getElementById('btnTabUpload');
+            const btnCamera = document.getElementById('btnTabCamera');
+            const panelUpload = document.getElementById('panelUpload');
+            const panelCamera = document.getElementById('panelCamera');
+
+            if (mode === 'upload') {
+                btnUpload.className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white shadow-sm transition";
+                btnCamera.className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 transition";
+                panelUpload.classList.remove('hidden');
+                panelCamera.classList.add('hidden');
+                stopCamera();
+            } else {
+                btnCamera.className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white shadow-sm transition";
+                btnUpload.className = "px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-200 text-slate-700 hover:bg-slate-300 transition";
+                panelCamera.classList.remove('hidden');
+                panelUpload.classList.add('hidden');
+                startCamera();
+            }
+        }
+
+        // Upload Image Handler
+        function previewUploadedImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    base64PhotoData = e.target.result;
+                    document.getElementById('fotoPreview').src = base64PhotoData;
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Kamera Handler
+        async function startCamera() {
+            const video = document.getElementById('webcam');
+            const placeholder = document.getElementById('cameraPlaceholder');
+            try {
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: { width: 300, height: 400 } });
+                video.srcObject = videoStream;
+                placeholder.classList.add('hidden');
+            } catch (err) {
+                alert('Gagal mengakses kamera perangkat: ' + err.message);
+            }
+        }
+
+        function stopCamera() {
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+                const video = document.getElementById('webcam');
+                video.srcObject = null;
+                document.getElementById('cameraPlaceholder').classList.remove('hidden');
+            }
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('webcam');
+            const canvas = document.getElementById('webcamCanvas');
+            if (!videoStream) {
+                alert('Kamera belum dihidupkan!');
+                return;
+            }
+            canvas.width = video.videoWidth || 300;
+            canvas.height = video.videoHeight || 400;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            base64PhotoData = canvas.toDataURL('image/png');
+            document.getElementById('fotoPreview').src = base64PhotoData;
+            alert('Foto wajah berhasil diambil dari kamera!');
+        }
+
+        // Simpan / Update Data Penduduk
+        function saveResident(event) {
+            event.preventDefault();
+            const index = document.getElementById('editIndex').value;
+            const nik = document.getElementById('nik').value;
+            const nama = document.getElementById('nama').value;
+            const tempatLahir = document.getElementById('tempatLahir').value;
+            const tanggalLahir = document.getElementById('tanggalLahir').value;
+            const jenisKelamin = document.getElementById('jenisKelamin').value;
+            const agama = document.getElementById('agama').value;
+            const alamat = document.getElementById('alamat').value;
+
+            // Validasi NIK unik
+            const existingIndex = residents.findIndex(r => r.nik === nik);
+            if (existingIndex !== -1 && existingIndex !== parseInt(index)) {
+                alert('NIK sudah terdaftar dalam sistem!');
+                return;
+            }
+
+            const residentData = {
+                nik,
+                nama,
+                tempatLahir,
+                tanggalLahir,
+                jenisKelamin,
+                agama,
+                alamat,
+                foto: base64PhotoData || 'https://placehold.co/150x200/cbd5e1/64748b?text=No+Foto'
+            };
+
+            if (index === '') {
+                residents.push(residentData);
+            } else {
+                residents[index] = residentData;
+            }
+
+            saveToStorage();
+            closeModal();
+        }
+
+        // Edit Data
+        function editResident(index) {
+            const res = residents[index];
+            document.getElementById('editIndex').value = index;
+            document.getElementById('nik').value = res.nik;
+            document.getElementById('nama').value = res.nama;
+            document.getElementById('tempatLahir').value = res.tempatLahir;
+            document.getElementById('tanggalLahir').value = res.tanggalLahir;
+            document.getElementById('jenisKelamin').value = res.jenisKelamin;
+            document.getElementById('agama').value = res.agama;
+            document.getElementById('alamat').value = res.alamat;
+            base64PhotoData = res.foto;
+            document.getElementById('fotoPreview').src = base64PhotoData;
+
+            document.getElementById('modalTitle').innerHTML = '<i class="fa-solid fa-user-pen mr-2"></i>Edit Data Penduduk';
+            document.getElementById('residentModal').classList.remove('hidden');
+            switchPhotoTab('upload');
+        }
+
+        // Hapus Data
+        function deleteResident(index) {
+            if (confirm(`Apakah Anda yakin ingin menghapus data penduduk atas nama ${residents[index].nama}?`)) {
+                residents.splice(index, 1);
+                saveToStorage();
+            }
+        }
+
+        // Download Foto Individual
+        function downloadPhoto(index) {
+            const res = residents[index];
+            const link = document.createElement('a');
+            link.href = res.foto;
+            link.download = `Foto_${res.nik}_${res.nama.replace(/\s+/g, '_')}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Buka KTP Digital (IKD) Modal
+        function openIkdModal(index) {
+            const res = residents[index];
+            activeResidentForDownload = res;
+            document.getElementById('ikdFoto').src = res.foto;
+            document.getElementById('ikdNik').textContent = res.nik;
+            document.getElementById('ikdNama').textContent = res.nama;
+            document.getElementById('ikdTtl').textContent = `${res.tempatLahir}, ${formatDate(res.tanggalLahir)}`;
+            document.getElementById('ikdGenderAgama').textContent = `${res.jenisKelamin} / ${res.agama}`;
+            document.getElementById('ikdAlamat').textContent = res.alamat;
+
+            document.getElementById('ikdModal').classList.remove('hidden');
+        }
+
+        function closeIkdModal() {
+            document.getElementById('ikdModal').classList.add('hidden');
+        }
+
+        function downloadActiveFoto() {
+            if (activeResidentForDownload) {
+                const link = document.createElement('a');
+                link.href = activeResidentForDownload.foto;
+                link.download = `Foto_${activeResidentForDownload.nik}_${activeResidentForDownload.nama.replace(/\s+/g, '_')}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        // Export ke Excel menggunakan SheetJS
+        function exportToExcel() {
+            if (residents.length === 0) {
+                alert('Tidak ada data penduduk untuk diexport!');
+                return;
+            }
+
+            // Siapkan data teks bersih untuk spreadsheet
+            const exportData = residents.map((r, i) => ({
+                No: i + 1,
+                NIK: `'${r.nik}`, // Tambah kutip agar terbaca teks penuh
+                "Nama Lengkap": r.nama,
+                "Tempat Lahir": r.tempatLahir,
+                "Tanggal Lahir": r.tanggalLahir,
+                "Jenis Kelamin": r.jenisKelamin,
+                Agama: r.agama,
+                Alamat: r.alamat
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Data Penduduk IKD");
+
+            // Simpan file excel
+            XLSX.writeFile(workbook, "Data_Penduduk_IKD.xlsx");
+        }
+    </script>
+</body>
+</html>
